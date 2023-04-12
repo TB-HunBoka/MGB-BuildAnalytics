@@ -31,11 +31,6 @@ build8 = '1000000000000000100000106000000060100100100100100100100100100100100100
 
 base_damage = 5
 
-custom_block_mapping = {'01':'ejection_up', '02':'auto_fly', '03':'second_try'
-                        , '04':'manual_burst', '05':'3x3', '06':'blue'
-                        , '07':'longer_countdown', '08':'light_green', '09':'skipp'
-                        , '10':'10%_more', '11':'ejection_side', '12':'red_after_wave'}
-
 def parse_build(build):
     custom = build[0:1] # custom ship Y/N
     custom_blocks = build[1:33] # custom blocks
@@ -143,20 +138,21 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
     
     item_id = item[0:2]
     orientation = int(item[2])
-
+    
 # Option A:    
-    match item_name_mapper(item_id):
-        case 'generator':
-            item_att = {
-                "coord": (current_x, current_y),
-                "item_id": item[0:2],
-                "orientation": orientation,
-                "previous_damage" : 0,
-                "current_damage": base_damage
-            }
+#     match item_name_mapper(item_id):
+#         case 'generator':
+#             item_att = {
+#                 "coord": (current_x, current_y),
+#                 "item_id": item[0:2],
+#                 "orientation": orientation,
+#                 "previous_damage" : 0,
+#                 "current_damage": base_damage
+#             }
+
 # Option B:
 
-    match item_id:
+    match str(item_id):
         case '02':
             item_att = {
                 "coord": (current_x, current_y),
@@ -165,34 +161,37 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
                 "previous_damage" : 0,
                 "current_damage": base_damage
             }
-    
-    # if item_att is None:
-    #     # create the basic damage structure
-    #     item_att = {
-    #         "coord": (current_x, current_y),
-    #         "item_id": item[0:2],
-    #         "orientation": orientation,
-    #         "previous_damage" : 0,
-    #         "current_damage": base_damage
-    #     }
-    # else:
-    #     try:
-    #         item_att = {
-    #             "coord": (current_x, current_y),
-    #             "item_id": item[0:2],
-    #             "orientation": orientation,
-    #             "previous_damage" : item_list[-1]['current_damage']
-    #         }
-    #     except Exception as ex:
-    #         print(f'Error in creating the dictionary: {ex}')
+            
+        case other:
+            item_att = {
+                "coord": (current_x, current_y),
+                "item_id": item[0:2],
+                "orientation": orientation,
+                "previous_damage" : item_list[-1]['previous_damage'],
+                "current_damage": item_list[-1]['previous_damage']
+            }
+            
+#     if item_att is None:
+#         # create the basic damage structure
+
+#     else:
+#         try:
+#             item_att = {
+#                 "coord": (current_x, current_y),
+#                 "item_id": item[0:2],
+#                 "orientation": orientation,
+#                 "previous_damage" : item_list[-1]['current_damage']
+#             }
+#         except Exception as ex:
+#             print(f'Error in creating the dictionary: {ex}')
         
-    #     try:
-    #         # call the function to update the dictionary
-    #         item_att = eval(f'{item_name_mapper(item_id)}({item_att},{item_list})')
-    #     except SyntaxError:
-    #         print(f'Error in the dictionary update code. Current list: {item_list},{chr(10)} current item: {item_att}.')
-    #     except Exception as ex:
-    #         print(ex)
+#         try:
+#             # call the function to update the dictionary
+#             item_att = eval(f'{item_name_mapper(item_id)}({item_att},{item_list})')
+#         except SyntaxError:
+#             print(f'Error in the dictionary update code. Current list: {item_list},{chr(10)} current item: {item_att}.')
+#         except Exception as ex:
+#             print(ex)
         
 
     
