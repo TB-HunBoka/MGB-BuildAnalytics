@@ -128,7 +128,9 @@ def next_coordination(x_coord, y_coord, item_with_orientation, previous_directio
     return x_coord, y_coord, direction
 
 # v5 adding the function that calls the item functions. nem tudom, hogy az egész listát adjam-e át, vagy csak az item_att-ot
-def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, current_y=None, item_att=None, previous_direction=None, item_list=None):
+# új ötlet, simán match item, case kombó elég. Ha id-vel dolgozom, akkor 10 000 hívásonként fél másodpercel gyorsabb
+# mintha meghívnám az item_name mappert, de kevésbé lesz átlátható.
+def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, current_y=None, previous_item_att=None, previous_direction=None, item_list=None):
 #     global item_list
     if current_x is None or current_y is None:
         current_x, current_y = get_starting_position(items_and_orientation_2d_array)
@@ -142,33 +144,111 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
 # Option A:    
 #     match item_name_mapper(item_id):
 #         case 'generator':
-#             item_att = {
-#                 "coord": (current_x, current_y),
-#                 "item_id": item[0:2],
-#                 "orientation": orientation,
-#                 "previous_damage" : 0,
-#                 "current_damage": base_damage
-#             }
 
 # Option B:
-
+    #basic dictionary
+    if previous_item_att is None:
+        item_att = {
+            "coord": (current_x, current_y),
+            "item_id": item[0:2],
+            "orientation": orientation,
+        } 
+    else:
+        item_att = {
+            "coord": (current_x, current_y),
+            "item_id": item[0:2],
+            "orientation": orientation,
+            "previous_damage": previous_item_att['current_damage'],
+#             "current_damage": previous_item_att['current_damage']
+        } 
+    
     match str(item_id):
         case '02':
-            item_att = {
-                "coord": (current_x, current_y),
-                "item_id": item[0:2],
-                "orientation": orientation,
-                "previous_damage" : 0,
-                "current_damage": base_damage
-            }
+            #generator
+            item_att['previous_damage'] = 0
+            item_att['current_damage'] = base_damage
+            if generator_skilled:
+                item_att['current_damage'] = item_att['current_damage']+5
+            
+        case '00':
+            #empty
+            item_att['current_damage'] = item_att['previous_damage']
+            if empty_slot_skilled:
+                item_att['current_damage'] = item_att['current_damage']+70*empty_slot_skilled
+        
+        case '04':
+            #turn_right
+            item_att['current_damage'] = item_att['previous_damage']
+            if turn_right_skilled:
+                item_att['current_damage'] = item_att['current_damage']+5*
+
+        case '05':
+             #turn_left
+            item_att['current_damage'] = item_att['previous_damage']+5*turn_left_skilled
+                
+        case '06':
+            item_att['current_damage'] = item_att['previous_damage']+1
+            if add_1_damage_5_skilled:
+                item_att['current_damage'] = item_att['current_damage']+5
+            if add_1_damage_20_skilled:
+                item_att['current_damage'] = item_att['current_damage']+20*count_add_1_damage
+
+        case '07':
+            if small_spread_skilled:
+                item_att['current_damage'] = item_att['previous_damage']+small_spread_skilled*increase_value_by_random_percentage(previous_item_att['previous_damage'],0.5)
+            else:
+                item_att['current_damage'] = item_att['previous_damage']
+                
+        case '08':
+            if large_spread_skilled:
+                item_att['current_damage'] = increase_value_by_random_percentage(item_att['previous_damage'],50)
+            else:
+                item_att['current_damage'] = item_att['previous_damage']
+
+        case '09':
+            if spread_left_skilled:
+                item_att['current_damage'] = increase_value_by_random_percentage(item_att['previous_damage'],40)
+            else:
+                item_att['current_damage'] = item_att['previous_damage']
+
+        case '10':
+            if spread_right_skilled:
+                item_att['current_damage'] = increase_value_by_random_percentage(item_att['previous_damage'],40)
+            else:
+                item_att['current_damage'] = item_att['previous_damage']
+                
+        case '11':
+            if random_curve_skilled:
+                item_att['current_damage'] = item_att['previous_damage']
+            else:
+                item_att['current_damage'] = item_att['previous_damage']
+                
+        case '12':
+            if _skilled:
+                item_att['current_damage'] = item_att['previous_damage']
+            else:
+                item_att['current_damage'] = item_att['previous_damage']
+                
+        case '':
+            if _skilled:
+                item_att['current_damage'] = item_att['previous_damage']
+            else:
+                item_att['current_damage'] = item_att['previous_damage']
+                
+        case '':
+            if _skilled:
+                item_att['current_damage'] = item_att['previous_damage']
+            else:
+                item_att['current_damage'] = item_att['previous_damage']
+            
             
         case other:
             item_att = {
                 "coord": (current_x, current_y),
                 "item_id": item[0:2],
                 "orientation": orientation,
-                "previous_damage" : item_list[-1]['previous_damage'],
-                "current_damage": item_list[-1]['previous_damage']
+                "previous_damage" : previous_item_att['previous_damage'],
+                "current_damage": previous_item_att['current_damage']
             }
             
 #     if item_att is None:
