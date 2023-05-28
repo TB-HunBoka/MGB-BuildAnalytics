@@ -253,7 +253,7 @@ def ejection_level_damage_updater(item_att, previous_item_att, item_list):
     if skills['random_bounce_damage'] and item_att['repeatedly_turn_upward'] > 0:
         item_att[''] = item_att['previous_damage']
     elif skills['repeatedly_turn_upward'] > 0:
-        item_att['current_damage'] = item_att['previous_damage']*2*skilled['random_bounce_damage']
+        item_att['current_damage'] = item_att['previous_damage']*2*skills['random_bounce_damage']
     
 
 def wrapper():
