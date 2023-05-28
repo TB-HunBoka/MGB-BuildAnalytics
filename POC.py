@@ -2,34 +2,21 @@ import random
 import re
 import numpy as np
 import pandas as pd
-import items
+# import items
 import time
+import math
+from yaml import safe_load
 
-# dupla cross
-build1 = '109060606060606060606060601050606010010010010010010010010010010010010010010010010010050551051010050051010043040010010010010043300040552010550552010572430010010010050301041550552010550552010562420010010010240242010550552010550552010562410010010010240242010550552010550552010562360010010010240242010550552010550552010562210010010010240242010570552010550552010562260010010010240242010550552010550552010552160010010010053052010280552010550552010552160010010010010010010280042551041572010552510010010010010030010053153153651572010552480010010010010053363163163453343052010642470010010010010010010010010010010010010010020010010'
+from damage_updater import item_att_damage_updater
 
-# aoe ys farmer
-build2 = '105050506050705060501050605050506010010010010010010010010010010010010010010010043243243413363213243243243153040010010010242043563563563563563563563040620010010010242562043553553553553553040560240010010010242562552043543553553040550560440010010010242562552042541451051550550560620010010010242562552010010010162550550560160010010010572562552010010010162550550560160010010010572562552010030010362550550560160010010010572562552010053433052550550560160010010010572562042551551551551041550560510010010010562042561561551551551551041560470010010010042561561571571561561561561041480010010010010010010010010010010010010010020010010'
-
-# mostly empty:
-build3 = '105050506050705060501050605050506010010010010010010010010010010010010010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000010010010000000000000000010010010000000000010010010000000000000000010010010000000000010030010000000000000000010010010000000000010053000000000000203040010010010000000000000000000000000000000000010010010000000000000000000000000000000200010010010000000000000000000000000000000060010010010010010010010010010010010010010020010010'
-
-# legenradies:
-build4 = '105050506050705060501050605050506010010010010010010010010010010010010010010010043583573563553543533523000513040010010010592000000000000000000000000000500010010010602000000000000000000000000000490010010010612000000000000000000000000000400010010010622000000000000000000000000000470010010010632000000010010010000000000000420010010010000000000010010010000000000000450010010010000000000010030010000000000000440010010010000000000010000000000000000000430010010010042000000000041000000000000000460010010010000000000000000000000000000000410010010010000000000000000000000000000000480010010010010010010010010010010010010010020010010'
-
-#portal:
-build5 = '105050506050705060501050605050506010010010010010010010010010010010010010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000010010010000000000000000010010010000000000010010010000000000000000010010010000000000010030010000000000000000010010010000000000010000000000000000000000010010010000000000000652000000000000000000010010010000000000000000000000000000000640010010010000000000000000000000000000000000010010010010010010010010010010010010010020010010'
-
-# to the wall
-build6 = '105050506050705060501050605050506010010010010010010010010010010010010010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000000000000000000000000000010010010000000000010010010000000000000000010010010000000000010010010000000000000000010010010000000000010030010000000000000000010010010000000000010000000000000000000000010010010000000000000652000000000000000000010010010000000000000000000000000000000010010010010000000000000000000000000000000000010010010010010010010010010010010010010020010010'
-
-# every item
-build7 = '105050505050705050501050505050506010010010010010010010010010010010010010010010143000000000000283343253263363000040010010000043000333323383243193183230640000010010000000043000513503493000040000000390010010000352000043000000633040000000110210010010000162522042000000051620400000120200010010000272532010010010000610470000070310010010000372542010010010000600420000100130010010000292552010030010000590450000080000010010000302000010053000052580440000090652010010000000042000561571000041000000150010010010000042000481411461431000041000060010010010172000000000000000000000000221000010010010010010010010010010010010010010020010010'
-
-# build with a single 3 way split
+# example build with a single 3 way split
 build8 = '100000000000000010000010600000006010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010030010010010010010010010010010010010010010000000010010010010010010010010010010010000000010010010010010010010010010010030010000000010010010010010010010010010010053000000170010010010010010010010010010010010010000000010010010010010010010010010010010010000000010010010010010010010010010010010010000000010010010010010010010010010010010010010020010010'
 
 base_damage = 5
+
+with open('skills.yaml', 'r') as skills_file:
+    skill_yaml = safe_load(skills_file)
+    skills = skill_yaml['skills']
 
 def parse_build(build):
     custom = build[0:1] # custom ship Y/N
@@ -40,11 +27,21 @@ def parse_build(build):
     items = build[33:] #items
     items_and_orientation = re.findall('...?',items)
     items_and_orientation_2d_array = np.reshape(items_and_orientation, (14,14))
+#     item_list = pd.Series(items_and_orientation).str[0:2].values
+#     item_list_named_2d_array = ...
+#     item_list_2d_array = np.reshape(item_list, (14,14))
     return custom_block_list, custom_block_name_2d_array, custom_block_id_2d_array, items_and_orientation_2d_array
     
 def chance(percentage):
     rand_num = random.uniform(0, 1)
     return rand_num < (percentage / 100)
+
+def increase_value_by_random_percentage(value, factor):
+    # Generate a random value between 0 and factor
+    rand_factor = random.uniform(0, factor/100)
+    # Multiply the value by the random factor
+    new_value = value + value * rand_factor
+    return new_value
 
 def custom_block_mapper(custom_block_number):
     custom_block_mapping = {'00' : 'empty', '01':'ejection_up', '02':'auto_fly', '03':'second_try'
@@ -62,7 +59,7 @@ def item_name_mapper(item):
                      '20':'x2_damage', '21':'x10_damage', '39':'random_damage', '36':'charge',
                      '26':'return_bounce', '25':'random_bounce', '34':'ricochet', '28':'double_lifetime',
                      '14':'2_way_split', '17':'3_way_split', '22':'2_way_random_split', '23':'3_way_random_split',
-                     '18':'death_pierce', '19':'pirce', '24':'circle_aoe', '38':'rectangle_aoe',
+                     '18':'death_pierce', '19':'pierce', '24':'circle_aoe', '38':'rectangle_aoe',
                      '32':'magnet', '33':'align_direction', '35':'line_magnet', '16':'add_projectile',
                      '27':'shoot_upward', '37':'shoot_sideways', '29':'money_cross', '30':'damage_cross',
                      '48':'tier_damage', '41':'damage_comeback', '46':'evolved_damage', '43':'damage_stockpile',
@@ -141,17 +138,20 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
     item_id = item[0:2]
     orientation = int(item[2])
     
-# Option A:    
-#     match item_name_mapper(item_id):
-#         case 'generator':
-
-# Option B:
     #basic dictionary
     if previous_item_att is None:
         item_att = {
             "coord": (current_x, current_y),
             "item_id": item[0:2],
             "orientation": orientation,
+            "cycle_aoe" : 0,
+            "square_aoe" : 0,
+            "pierce" : 0,
+            "death_pierce" : 0,
+            "return_bounce" : 0,
+            "random_bounce" : 0,
+            "ricochet" : 0,
+            "repeatedly_turn_upward" : 0
         } 
     else:
         item_att = {
@@ -159,121 +159,21 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
             "item_id": item[0:2],
             "orientation": orientation,
             "previous_damage": previous_item_att['current_damage'],
-#             "current_damage": previous_item_att['current_damage']
+#             "current_damage": previous_item_att['current_damage'] # later I might re-enable this for safety
+            "effective_damage": previous_item_att['effective_damage'],
+            "cycle_aoe" : previous_item_att["cycle_aoe"],
+            "square_aoe" : previous_item_att["square_aoe"],
+            "pierce" : previous_item_att["pierce"],
+            "death_pierce" : previous_item_att["death_pierce"],
+            "return_bounce" : previous_item_att["return_bounce"],
+            "random_bounce" : previous_item_att["random_bounce"],
+            "ricochet" : previous_item_att["ricochet"],
+            "repeatedly_turn_upward" : previous_item_att["repeatedly_turn_upward"]
         } 
+        
+    # item_att_damage_updater will give back the current damage and effective damage after modifications
+    item_att = item_att_damage_updater(item_id, item_att, previous_item_att)
     
-    match str(item_id):
-        case '02':
-            #generator
-            item_att['previous_damage'] = 0
-            item_att['current_damage'] = base_damage
-            if generator_skilled:
-                item_att['current_damage'] = item_att['current_damage']+5
-            
-        case '00':
-            #empty
-            item_att['current_damage'] = item_att['previous_damage']
-            if empty_slot_skilled:
-                item_att['current_damage'] = item_att['current_damage']+70*empty_slot_skilled
-        
-        case '04':
-            #turn_right
-            item_att['current_damage'] = item_att['previous_damage']
-            if turn_right_skilled:
-                item_att['current_damage'] = item_att['current_damage']+5*
-
-        case '05':
-             #turn_left
-            item_att['current_damage'] = item_att['previous_damage']+5*turn_left_skilled
-                
-        case '06':
-            item_att['current_damage'] = item_att['previous_damage']+1
-            if add_1_damage_5_skilled:
-                item_att['current_damage'] = item_att['current_damage']+5
-            if add_1_damage_20_skilled:
-                item_att['current_damage'] = item_att['current_damage']+20*count_add_1_damage
-
-        case '07':
-            if small_spread_skilled:
-                item_att['current_damage'] = item_att['previous_damage']+small_spread_skilled*increase_value_by_random_percentage(previous_item_att['previous_damage'],0.5)
-            else:
-                item_att['current_damage'] = item_att['previous_damage']
-                
-        case '08':
-            if large_spread_skilled:
-                item_att['current_damage'] = increase_value_by_random_percentage(item_att['previous_damage'],50)
-            else:
-                item_att['current_damage'] = item_att['previous_damage']
-
-        case '09':
-            if spread_left_skilled:
-                item_att['current_damage'] = increase_value_by_random_percentage(item_att['previous_damage'],40)
-            else:
-                item_att['current_damage'] = item_att['previous_damage']
-
-        case '10':
-            if spread_right_skilled:
-                item_att['current_damage'] = increase_value_by_random_percentage(item_att['previous_damage'],40)
-            else:
-                item_att['current_damage'] = item_att['previous_damage']
-                
-        case '11':
-            if random_curve_skilled:
-                item_att['current_damage'] = item_att['previous_damage']
-            else:
-                item_att['current_damage'] = item_att['previous_damage']
-                
-        case '12':
-            if _skilled:
-                item_att['current_damage'] = item_att['previous_damage']
-            else:
-                item_att['current_damage'] = item_att['previous_damage']
-                
-        case '':
-            if _skilled:
-                item_att['current_damage'] = item_att['previous_damage']
-            else:
-                item_att['current_damage'] = item_att['previous_damage']
-                
-        case '':
-            if _skilled:
-                item_att['current_damage'] = item_att['previous_damage']
-            else:
-                item_att['current_damage'] = item_att['previous_damage']
-            
-            
-        case other:
-            item_att = {
-                "coord": (current_x, current_y),
-                "item_id": item[0:2],
-                "orientation": orientation,
-                "previous_damage" : previous_item_att['previous_damage'],
-                "current_damage": previous_item_att['current_damage']
-            }
-            
-#     if item_att is None:
-#         # create the basic damage structure
-
-#     else:
-#         try:
-#             item_att = {
-#                 "coord": (current_x, current_y),
-#                 "item_id": item[0:2],
-#                 "orientation": orientation,
-#                 "previous_damage" : item_list[-1]['current_damage']
-#             }
-#         except Exception as ex:
-#             print(f'Error in creating the dictionary: {ex}')
-        
-#         try:
-#             # call the function to update the dictionary
-#             item_att = eval(f'{item_name_mapper(item_id)}({item_att},{item_list})')
-#         except SyntaxError:
-#             print(f'Error in the dictionary update code. Current list: {item_list},{chr(10)} current item: {item_att}.')
-#         except Exception as ex:
-#             print(ex)
-        
-
     
     if item_id == '64':
         next_x, next_y = find_portal_exit(items_and_orientation_2d_array)
@@ -326,6 +226,35 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
         return item_list
     else:
         print('No item list will be returned by this path.')
+
+# future use: The effective damage calculation will be done on item level. There are some items that are counted at or after the ejection happened.
+# These should be calculated at the end of the path. I will have an estimated damage by the damage updater it self, but it will be incorrect. 
+# example: Flat damage increase after a bounce item will be ignored. The bounce calculation should be calculated on items after the bounce itself.
+# to_do:
+#   move it to the damage_updater.py
+#   complete the code
+def ejection_level_damage_updater(item_att, previous_item_att, item_list):
+    if skills['circle_aoe_penalty']:
+        item_att['current_damage'] = item_att['current_damage']*((1-0.03)**item_att['cycle_aoe'])
+    else:
+        item_att['current_damage'] = item_att['current_damage']*((1-0.06)**item_att['cycle_aoe'])
+    # majd a végén olyat kellene, hogy az item hatékonyság mutatókat vissza számoljam ezek alapján.
+    # tehát, ha 1 aoe lecsökkenti 6%-al a damaget, akkor annak az aoe-nak a hatékonysága 0.96 legyen
+    # ha két aoe lecsökkenti 11.64%-al, akkor mind a két aoe-nak legyen ott vagy a 0.96, vagy 94,18
+    # final_current_damage/original_current_damage
+    # current_damage/item_list[-1]['current_damage']   /  item_att['cycle_aoe']
+        
+    if skills['square_aoe_penalty']:
+        item_att['current_damage'] = item_att['current_damage']*((1-0.03)**item_att['square_aoe'])
+    else:
+        item_att['current_damage'] = item_att['current_damage']*((1-0.06)**item_att['square_aoe'])
+        
+
+    if skills['random_bounce_damage'] and item_att['repeatedly_turn_upward'] > 0:
+        item_att[''] = item_att['previous_damage']
+    elif skills['repeatedly_turn_upward'] > 0:
+        item_att['current_damage'] = item_att['previous_damage']*2*skilled['random_bounce_damage']
+    
 
 def wrapper():
     print(chance(100))
