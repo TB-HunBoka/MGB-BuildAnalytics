@@ -1,4 +1,3 @@
-import random
 import re
 import numpy as np
 import pandas as pd
@@ -7,7 +6,7 @@ import time
 import math
 from yaml import safe_load
 
-from damage_updater import item_att_damage_updater
+from damage_updater import projectile_damage_updater
 
 # example build with a single 3 way split
 build8 = '100000000000000010000010600000006010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010030010010010010010010010010010010010010010000000010010010010010010010010010010010000000010010010010010010010010010010030010000000010010010010010010010010010010053000000170010010010010010010010010010010010010000000010010010010010010010010010010010010000000010010010010010010010010010010010010000000010010010010010010010010010010010010010020010010'
@@ -31,17 +30,6 @@ def parse_build(build):
 #     item_list_named_2d_array = ...
 #     item_list_2d_array = np.reshape(item_list, (14,14))
     return custom_block_list, custom_block_name_2d_array, custom_block_id_2d_array, items_and_orientation_2d_array
-    
-def chance(percentage):
-    rand_num = random.uniform(0, 1)
-    return rand_num < (percentage / 100)
-
-def increase_value_by_random_percentage(value, factor):
-    # Generate a random value between 0 and factor
-    rand_factor = random.uniform(0, factor/100)
-    # Multiply the value by the random factor
-    new_value = value + value * rand_factor
-    return new_value
 
 def custom_block_mapper(custom_block_number):
     custom_block_mapping = {'00' : 'empty', '01':'ejection_up', '02':'auto_fly', '03':'second_try'
@@ -171,8 +159,9 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
             "repeatedly_turn_upward" : previous_item_att["repeatedly_turn_upward"]
         } 
         
-    # item_att_damage_updater will give back the current damage and effective damage after modifications
-    item_att = item_att_damage_updater(item_id, item_att, previous_item_att)
+    # projectile_damage_updater will give back the current damage and effective damage after modifications
+    item_att = projectile_damage_updater(item_id=item_id, item_att=item_att, previous_item_att=previous_item_att, skills=skills, base_damage=base_damage, count_add_1_damage=count_add_1_damage)
+    item_att = effective_damage_updater()
     
     
     if item_id == '64':
@@ -189,7 +178,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
     
     print('next coordinations are:', next_x, next_y)
 
-    if len(item_list) > 150:
+    if len(item_list) > 250:
         print('Infinite loop terminated!')
     
     # ejection
@@ -226,38 +215,18 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
         return item_list
     else:
         print('No item list will be returned by this path.')
-
-# future use: The effective damage calculation will be done on item level. There are some items that are counted at or after the ejection happened.
-# These should be calculated at the end of the path. I will have an estimated damage by the damage updater it self, but it will be incorrect. 
-# example: Flat damage increase after a bounce item will be ignored. The bounce calculation should be calculated on items after the bounce itself.
-# to_do:
-#   move it to the damage_updater.py
-#   complete the code
-def ejection_level_damage_updater(item_att, previous_item_att, item_list):
-    if skills['circle_aoe_penalty']:
-        item_att['current_damage'] = item_att['current_damage']*((1-0.03)**item_att['cycle_aoe'])
-    else:
-        item_att['current_damage'] = item_att['current_damage']*((1-0.06)**item_att['cycle_aoe'])
-    # majd a végén olyat kellene, hogy az item hatékonyság mutatókat vissza számoljam ezek alapján.
-    # tehát, ha 1 aoe lecsökkenti 6%-al a damaget, akkor annak az aoe-nak a hatékonysága 0.96 legyen
-    # ha két aoe lecsökkenti 11.64%-al, akkor mind a két aoe-nak legyen ott vagy a 0.96, vagy 94,18
-    # final_current_damage/original_current_damage
-    # current_damage/item_list[-1]['current_damage']   /  item_att['cycle_aoe']
-        
-    if skills['square_aoe_penalty']:
-        item_att['current_damage'] = item_att['current_damage']*((1-0.03)**item_att['square_aoe'])
-    else:
-        item_att['current_damage'] = item_att['current_damage']*((1-0.06)**item_att['square_aoe'])
-        
-
-    if skills['random_bounce_damage'] and item_att['repeatedly_turn_upward'] > 0:
-        item_att[''] = item_att['previous_damage']
-    elif skills['repeatedly_turn_upward'] > 0:
-        item_att['current_damage'] = item_att['previous_damage']*2*skills['random_bounce_damage']
     
-
 def wrapper():
-    print(chance(100))
+    global count_add_1_damage
+    build = build8 # to_do: make it as a user input?
+    custom_block_list, custom_block_name_2d_array, custom_block_id_2d_array, items_and_orientation_2d_array = parse_build(build)
+    print(custom_block_name_2d_array)
+    print(custom_block_id_2d_array)
+    print(items_and_orientation_2d_array)
+    # performance improver global variables
+    count_add_1_damage = np.count_nonzero(custom_block_id_2d_array == '06')
+    item_list = convert_array_to_list_v2(items_and_orientation_2d_array)
+    print(item_list)
 
 if __name__ == "__main__":
     wrapper()
