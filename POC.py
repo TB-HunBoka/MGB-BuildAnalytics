@@ -161,7 +161,6 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
         
     # projectile_damage_updater will give back the current damage and effective damage after modifications
     item_att = projectile_damage_updater(item_id=item_id, item_att=item_att, previous_item_att=previous_item_att, skills=skills, base_damage=base_damage, count_add_1_damage=count_add_1_damage)
-    item_att = effective_damage_updater()
     
     
     if item_id == '64':

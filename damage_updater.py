@@ -27,6 +27,7 @@ def projectile_damage_updater(item_id, item_att, previous_item_att, skills, base
         case '02':
             #generator
             item_att['previous_damage'] = 0
+            item_att['effective_damage'] = 0
             if skills['generator_skilled']:
                 item_att['current_damage'] = base_damage+5
             else:
@@ -251,7 +252,7 @@ def projectile_damage_updater(item_id, item_att, previous_item_att, skills, base
             
             
         case other:
-            print('Undeveloped item: '+item_att[item_id])
+            print('Undeveloped item: '+ item_id)
 
     item_att = effective_damage_updater(item_id=item_id, item_att=item_att, previous_item_att=previous_item_att, skills=skills, base_damage=base_damage, count_add_1_damage=count_add_1_damage)
 
