@@ -16,6 +16,10 @@ with open('skills.yaml', 'r') as skills_file:
     skill_yaml = safe_load(skills_file)
     skills = skill_yaml['skills']
 
+with open('base_stats.yaml', 'r') as base_stats_file:
+    base_stats_yaml = safe_load(base_stats_file)
+    base_stats = base_stats_yaml['base_stats']
+
 def chance(percentage):
     rand_num = random.uniform(0, 1)
     return rand_num < (percentage / 100)
@@ -407,7 +411,10 @@ def next_coordination(x_coord, y_coord, item_with_orientation, previous_directio
 # v5 adding the function that calls the item functions. nem tudom, hogy az egész listát adjam-e át, vagy csak az item_att-ot
 # új ötlet, simán match item, case kombó elég. Ha id-vel dolgozom, akkor 10 000 hívásonként fél másodpercel gyorsabb
 # mintha meghívnám az item_name mappert, de kevésbé lesz átlátható.
-def convert_array_to_list_v2(items_and_orientation_2d_array, projectile_number, current_x=None, current_y=None, previous_projectile_att=None, previous_direction=None, item_list=None):
+# v5 adding the function that calls the item functions. nem tudom, hogy az egész listát adjam-e át, vagy csak az item_att-ot
+# új ötlet, simán match item, case kombó elég. Ha id-vel dolgozom, akkor 10 000 hívásonként fél másodpercel gyorsabb
+# mintha meghívnám az item_name mappert, de kevésbé lesz átlátható.
+def convert_array_to_list_v2(items_and_orientation_2d_array, projectile_id, current_x=None, current_y=None, previous_projectile_att=None, previous_direction=None, item_list=None):
 #     global item_list
     if current_x is None or current_y is None:
         current_x, current_y = get_starting_position(items_and_orientation_2d_array)
@@ -423,7 +430,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, projectile_number, 
         projectile_att = {
             "coord": (current_x, current_y),
             "item_id": item[0:2],
-            "projectile_number": projectile_number,
+            "projectile_id": projectile_id,
             "orientation": orientation,
             "cycle_aoe" : 0,
             "square_aoe" : 0,
@@ -438,7 +445,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, projectile_number, 
         projectile_att = {
             "coord": (current_x, current_y),
             "item_id": item[0:2],
-            "projectile_number": projectile_number,
+            "projectile_id": projectile_id,
             "orientation": orientation,
             "previous_damage": previous_projectile_att['current_damage'],
             "current_damage": previous_projectile_att['current_damage'], # later I might re-enable this for safety
@@ -490,7 +497,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, projectile_number, 
     elif item_id in ('30','29'):
         print('Item is not implemented:', item_name_mapper(item_id))
         item_list.append(projectile_att)
-        convert_array_to_list_v2(items_and_orientation_2d_array=items_and_orientation_2d_array, projectile_number=projectile_number, next_x=next_x, next_y=next_y, projectile_att=projectile_att, current_direction=current_direction, item_list=item_list)
+        convert_array_to_list_v2(items_and_orientation_2d_array=items_and_orientation_2d_array, projectile_id=projectile_id, current_x=next_x, current_y=next_y, previous_projectile_att=projectile_att, previous_direction=current_direction, item_list=item_list)
     
     # hitting a wall
     elif item_id == '01': 
@@ -507,7 +514,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, projectile_number, 
     # continue the path  
     else:
         item_list.append(projectile_att)
-        convert_array_to_list_v2(items_and_orientation_2d_array=items_and_orientation_2d_array, projectile_number=projectile_number, next_x=next_x, next_y=next_y, projectile_att=projectile_att, current_direction=current_direction, item_list=item_list)
+        convert_array_to_list_v2(items_and_orientation_2d_array=items_and_orientation_2d_array, projectile_id=projectile_id, current_x=next_x, current_y=next_y, previous_projectile_att=projectile_att, previous_direction=current_direction, item_list=item_list)
     
     if item_list[-1]['item_id']=='03':
         print('item list is returned.')
@@ -530,20 +537,52 @@ def wrapper():
     
     every_projectile_df = pd.DataFrame()
 
-    for projectile_number in range(1,projectile_count):
-        item_list = convert_array_to_list_v2(items_and_orientation_2d_array,projectile_number)
+    for projectile_id in range(1,projectile_count):
+        item_list = convert_array_to_list_v2(items_and_orientation_2d_array=items_and_orientation_2d_array, projectile_id=projectile_id)
         # print(item_list)
 
         single_projectile_df = pd.DataFrame(item_list)
-        single_projectile_df = single_projectile_df[['coord','item_id','projectile_number','previous_damage','current_damage','effective_damage']]
+        single_projectile_df = single_projectile_df[['coord','item_id','projectile_id','previous_damage','current_damage','effective_damage']]
         single_projectile_df.set_index(['coord','item_id'],inplace=True)
         # I can calculate the efficiency per projectile or in the mean grouped by DF 5 rows below this
         single_projectile_df['efficiency'] = single_projectile_df['effective_damage']/single_projectile_df['previous_damage']
         
-        every_projectile_df = pd.concat((single_projectile_df, every_projectile_df))
-        every_projectile_df = every_projectile_df.groupby(level=(0,1), sort=False).mean()
-        # mean based eff
-        every_projectile_df['new_eff'] = every_projectile_df['effective_damage']/every_projectile_df['previous_damage']
+        every_projectile_df = pd.concat((single_projectile_df.replace(np.inf,np.NaN), every_projectile_df))
+    
+    # create single item statistics, but multiple aggregation
+    inpected_item_coord = (12, 11) # the user can select the id on the UI
+    one_item_stat = every_projectile_df.loc[inpected_item_coord].agg([np.mean,min,max]) # len => projectile_number
+    one_item_stat['coord'] = inpected_item_coord
+    # efficiency can be recaulculated based on these aggregations
+    one_item_stat['new_eff'] = one_item_stat['effective_damage']/one_item_stat['previous_damage']
+    '''
+    pro:
+        Multiple aggregation can be used.
+        Easy to extend the aggregation list. 
+        Easy to work with the result DF.
+        Single item view
+    cons:
+        coordination based. What would it do for crossing items?
+        it might need to rework to use the coordination and position in the path. (position alone also not good, because of multiple different path can have different items at position 3)
+        it need to recalculate the aggregation every time I change the coordination
+        Only one item at a time.
+        Index information needs to be re entered as a column, or need to keep in the DF
+    '''
+
+    # create statistics for the whole path, but with a single aggregation. The result is a DF.
+    mean_projectile_df = every_projectile_df.groupby(level=(0,1), sort=False).mean()
+    # efficiency can be recaulculated based on the aggregation
+    mean_projectile_df['new_eff'] = mean_projectile_df['effective_damage']/mean_projectile_df['previous_damage']
+    '''
+    pro:
+        the aggregation done once
+        the whole path will be visible on the final DF, just need to iterate on it. Quick user experience
+        memory efficient (I can generate all the aggregation and drop the calculation table.)
+        the indexes are kept in the results
+    cons:
+        a bit harder to work with the data (multi level index sliceing)
+        limited aggregations (min,max,mean,median,quantile,std,var ...)
+    '''
 
 if __name__ == "__main__":
     wrapper()

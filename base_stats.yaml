@@ -1,0 +1,4 @@
+base_stats:
+    'Base_damage' : 5,
+    'Base_firerate' : 3,
+    'Base_projectile_speed' : 2,
