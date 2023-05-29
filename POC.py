@@ -27,16 +27,16 @@ def increase_value_by_random_percentage(value, factor):
     new_value = value + value * rand_factor
     return new_value
 
-def effective_damage_updater(item_id, projectile_att, previous_item_att, skills, base_damage, count_add_1_damage):
-    difference = projectile_att['current_damage'] - projectile_att['previous_damage']
-    match str(item_id):
-        case '25':
-            projectile_att['effective_damage'] = projectile_att['effective_damage'] + projectile_att['current_damage']
+# def effective_damage_updater(item_id, projectile_att, previous_item_att, skills, base_damage, count_add_1_damage):
+#     difference = projectile_att['current_damage'] - projectile_att['previous_damage']
+#     match str(item_id):
+#         case '25':
+#             projectile_att['effective_damage'] = projectile_att['effective_damage'] + projectile_att['current_damage']
 
-        case other:
-            projectile_att['effective_damage'] = projectile_att['effective_damage'] + difference
+#         case other:
+#             projectile_att['effective_damage'] = projectile_att['effective_damage'] + difference
 
-    return projectile_att
+#     return projectile_att
 
 def projectile_damage_updater(item_id, projectile_att, previous_projectile_att, skills, base_damage, count_add_1_damage):
     match str(item_id):
@@ -46,6 +46,7 @@ def projectile_damage_updater(item_id, projectile_att, previous_projectile_att, 
             projectile_att['effective_damage'] = 0
             if skills['generator_skilled']:
                 projectile_att['current_damage'] = base_damage+5
+                projectile_att['effective_damage'] = projectile_att['current_damage']
             else:
                 projectile_att['current_damage'] = base_damage
             
@@ -284,6 +285,7 @@ def projectile_damage_updater(item_id, projectile_att, previous_projectile_att, 
 # to_do:
 #   move it to the damage_updater.py
 #   complete the code
+'''
 def ejection_level_damage_updater(item_att, previous_item_att, item_list, skills):
     if skills['circle_aoe_penalty']:
         item_att['current_damage'] = item_att['current_damage']*((1-0.03)**item_att['cycle_aoe'])
@@ -305,6 +307,7 @@ def ejection_level_damage_updater(item_att, previous_item_att, item_list, skills
         item_att[''] = item_att['previous_damage']
     elif skills['repeatedly_turn_upward'] > 0:
         item_att['current_damage'] = item_att['previous_damage']*2*skills['random_bounce_damage']
+    '''
 
 def parse_build(build):
     custom = build[0:1] # custom ship Y/N
@@ -404,7 +407,7 @@ def next_coordination(x_coord, y_coord, item_with_orientation, previous_directio
 # v5 adding the function that calls the item functions. nem tudom, hogy az egész listát adjam-e át, vagy csak az item_att-ot
 # új ötlet, simán match item, case kombó elég. Ha id-vel dolgozom, akkor 10 000 hívásonként fél másodpercel gyorsabb
 # mintha meghívnám az item_name mappert, de kevésbé lesz átlátható.
-def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, current_y=None, previous_projectile_att=None, previous_direction=None, item_list=None):
+def convert_array_to_list_v2(items_and_orientation_2d_array, projectile_number, current_x=None, current_y=None, previous_projectile_att=None, previous_direction=None, item_list=None):
 #     global item_list
     if current_x is None or current_y is None:
         current_x, current_y = get_starting_position(items_and_orientation_2d_array)
@@ -420,6 +423,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
         projectile_att = {
             "coord": (current_x, current_y),
             "item_id": item[0:2],
+            "projectile_number": projectile_number,
             "orientation": orientation,
             "cycle_aoe" : 0,
             "square_aoe" : 0,
@@ -434,6 +438,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
         projectile_att = {
             "coord": (current_x, current_y),
             "item_id": item[0:2],
+            "projectile_number": projectile_number,
             "orientation": orientation,
             "previous_damage": previous_projectile_att['current_damage'],
             "current_damage": previous_projectile_att['current_damage'], # later I might re-enable this for safety
@@ -485,7 +490,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
     elif item_id in ('30','29'):
         print('Item is not implemented:', item_name_mapper(item_id))
         item_list.append(projectile_att)
-        convert_array_to_list_v2(items_and_orientation_2d_array, next_x, next_y, projectile_att, current_direction, item_list)
+        convert_array_to_list_v2(items_and_orientation_2d_array=items_and_orientation_2d_array, projectile_number=projectile_number, next_x=next_x, next_y=next_y, projectile_att=projectile_att, current_direction=current_direction, item_list=item_list)
     
     # hitting a wall
     elif item_id == '01': 
@@ -502,7 +507,7 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
     # continue the path  
     else:
         item_list.append(projectile_att)
-        convert_array_to_list_v2(items_and_orientation_2d_array, next_x, next_y, projectile_att, current_direction, item_list)
+        convert_array_to_list_v2(items_and_orientation_2d_array=items_and_orientation_2d_array, projectile_number=projectile_number, next_x=next_x, next_y=next_y, projectile_att=projectile_att, current_direction=current_direction, item_list=item_list)
     
     if item_list[-1]['item_id']=='03':
         print('item list is returned.')
@@ -513,14 +518,32 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
 def wrapper():
     global count_add_1_damage
     build = build8 # to_do: make it as a user input?
+    projectile_count = 2 # to_do: make this as a user input
+
     custom_block_list, custom_block_name_2d_array, custom_block_id_2d_array, items_and_orientation_2d_array = parse_build(build)
     print(custom_block_name_2d_array)
     print(custom_block_id_2d_array)
     print(items_and_orientation_2d_array)
+
     # performance improver global variables
     count_add_1_damage = np.count_nonzero(custom_block_id_2d_array == '06')
-    item_list = convert_array_to_list_v2(items_and_orientation_2d_array)
-    print(item_list)
+    
+    every_projectile_df = pd.DataFrame()
+
+    for projectile_number in range(1,projectile_count):
+        item_list = convert_array_to_list_v2(items_and_orientation_2d_array,projectile_number)
+        # print(item_list)
+
+        single_projectile_df = pd.DataFrame(item_list)
+        single_projectile_df = single_projectile_df[['coord','item_id','projectile_number','previous_damage','current_damage','effective_damage']]
+        single_projectile_df.set_index(['coord','item_id'],inplace=True)
+        # I can calculate the efficiency per projectile or in the mean grouped by DF 5 rows below this
+        single_projectile_df['efficiency'] = single_projectile_df['effective_damage']/single_projectile_df['previous_damage']
+        
+        every_projectile_df = pd.concat((single_projectile_df, every_projectile_df))
+        every_projectile_df = every_projectile_df.groupby(level=(0,1), sort=False).mean()
+        # mean based eff
+        every_projectile_df['new_eff'] = every_projectile_df['effective_damage']/every_projectile_df['previous_damage']
 
 if __name__ == "__main__":
     wrapper()
