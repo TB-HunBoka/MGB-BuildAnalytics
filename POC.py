@@ -1,12 +1,11 @@
 import re
+import random
 import numpy as np
 import pandas as pd
 # import items
 import time
 import math
 from yaml import safe_load
-
-from damage_updater import projectile_damage_updater
 
 # example build with a single 3 way split
 build8 = '100000000000000010000010600000006010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010010030010010010010010010010010010010010010010000000010010010010010010010010010010010000000010010010010010010010010010010030010000000010010010010010010010010010010053000000170010010010010010010010010010010010010000000010010010010010010010010010010010010000000010010010010010010010010010010010010000000010010010010010010010010010010010010010020010010'
@@ -16,6 +15,296 @@ base_damage = 5
 with open('skills.yaml', 'r') as skills_file:
     skill_yaml = safe_load(skills_file)
     skills = skill_yaml['skills']
+
+def chance(percentage):
+    rand_num = random.uniform(0, 1)
+    return rand_num < (percentage / 100)
+
+def increase_value_by_random_percentage(value, factor):
+    # Generate a random value between 0 and factor
+    rand_factor = random.uniform(0, factor/100)
+    # Multiply the value by the random factor
+    new_value = value + value * rand_factor
+    return new_value
+
+def effective_damage_updater(item_id, projectile_att, previous_item_att, skills, base_damage, count_add_1_damage):
+    difference = projectile_att['current_damage'] - projectile_att['previous_damage']
+    match str(item_id):
+        case '25':
+            projectile_att['effective_damage'] = projectile_att['effective_damage'] + projectile_att['current_damage']
+
+        case other:
+            projectile_att['effective_damage'] = projectile_att['effective_damage'] + difference
+
+    return projectile_att
+
+def projectile_damage_updater(item_id, projectile_att, previous_projectile_att, skills, base_damage, count_add_1_damage):
+    match str(item_id):
+        case '02':
+            #generator
+            projectile_att['previous_damage'] = 0
+            projectile_att['effective_damage'] = 0
+            if skills['generator_skilled']:
+                projectile_att['current_damage'] = base_damage+5
+            else:
+                projectile_att['current_damage'] = base_damage
+            
+        case '00':
+            #empty
+            if skills['empty_slot_skilled']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']+70
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        
+        case '04':
+            #turn_right
+            if skills['turn_right_skilled']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']+5
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+
+        case '05':
+             #turn_left
+            if skills['turn_left_skilled']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']+5
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '06':
+            projectile_att['current_damage'] = projectile_att['previous_damage']+1
+            if skills['add_1_damage_5_skilled']:
+                projectile_att['current_damage'] = projectile_att['current_damage']+5
+            if skills['add_1_damage_20_skilled']:
+                projectile_att['current_damage'] = projectile_att['current_damage']+20*count_add_1_damage
+
+        case '07':
+            if skills['small_spread_skilled']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']+increase_value_by_random_percentage(previous_projectile_att['previous_damage'],0.5)
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '08':
+            if skills['large_spread_skilled']:
+                projectile_att['current_damage'] = increase_value_by_random_percentage(projectile_att['previous_damage'],50)
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+
+        case '09':
+            if skills['spread_left_skilled']:
+                projectile_att['current_damage'] = increase_value_by_random_percentage(projectile_att['previous_damage'],40)
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+
+        case '10':
+            if skills['spread_right_skilled']:
+                projectile_att['current_damage'] = increase_value_by_random_percentage(projectile_att['previous_damage'],40)
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '11':
+            if skills['random_curve_skilled']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '12':
+            if skills['curve_left']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*1.3
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '13':
+            if skills['curve_right']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*1.3
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+        
+        case '20':
+            if skills['x2_damage_chance']:
+                x2_chance = 40
+            else:
+                x2_chance = 33
+                
+            if skills['x2_damage_multi']:
+                x2_multi = 2.5
+            else:
+                x2_multi = 2
+            projectile_att['current_damage'] = projectile_att['previous_damage']+projectile_att['previous_damage']*chance(x2_chance)*(x2_multi-1)
+        
+        case '21':
+            if skills['x10_damage_x30']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*(1+29*chance(4))
+            elif skills['x10_damage_x20']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*(1+19*chance(4))
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*(1+9*chance(4))
+                
+        case '22': # for later use
+            if skills['2_way_random_split']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*3
+                # and start projectile in 2 direction
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*2
+                # and start projectile in 2 direction
+        
+        case '23': # for later use
+            if skills['3_way_random_split']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*4
+                # and start projectile in 3 direction
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*3
+                # and start projectile in 3 direction
+                
+        case '24':
+            #to do: calculate the damage increase for aoe
+            projectile_att['cycle_aoe'] += 1
+            if skills['circle_aoe_penalty']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*(1-0.03)
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*(1-0.06)
+
+        case '38':
+            #to do: calculate the damage increase for aoe
+            projectile_att['square_aoe'] += 1
+            if skills['square_aoe_penalty']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*(1-0.03)
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*(1-0.06)
+
+        case '25':
+            # to do: a bounce által okozott damagenövekedés számolása. Bounceonként 17% -al nő. plusz a bounce duplázza a damaget.
+            # ezt szeretném figyelembe venni a kimutatásoknál, ezért valahogy le kell implementáljam
+            # ha simán úgy viszem tovább, hogy item_att['current_damage'] = item_att['previous_damage']*bounce, akkor félek
+            # hogy a többi bounce típus hibásan fogja tovább szorozni. Ezért szétszedem a projectile_damaget és az effective_damaget
+            if skills['random_bounce_damage']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']*1.17
+            if skills['random_bounce_bounce'] and skills['random_bounce_damage']:
+                projectile_att['random_bounce'] = projectile_att['random_bounce']+1*chance(25)
+                projectile_att['current_damage'] = projectile_att['current_damage']*1.17
+            elif skills['random_bounce_bounce']:
+                projectile_att['random_bounce'] = projectile_att['random_bounce']+1*chance(25)
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            projectile_att['random_bounce'] = projectile_att['random_bounce']+1
+                
+        case '26':
+            if skills['return_bounce_bounce']:
+                projectile_att['return_bounce'] = projectile_att['return_bounce']+1*chance(25)
+            projectile_att['return_bounce'] = projectile_att['return_bounce']+1
+                
+        case '27':
+            if skills['shoot_upward']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '28':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+
+        case '29':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '30':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '31':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '32':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '33':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '34':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '35':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '36':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '37':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '39':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+                
+        case '':
+            if skills['']:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            else:
+                projectile_att['current_damage'] = projectile_att['previous_damage']
+            
+            
+        case other:
+            print('Undeveloped item: '+ item_id)
+            projectile_att['current_damage'] = projectile_att['previous_damage']
+
+    return projectile_att
+
+
+# future use: The effective damage calculation will be done on item level. There are some items that are counted at or after the ejection happened.
+# These should be calculated at the end of the path. I will have an estimated damage by the damage updater it self, but it will be incorrect. 
+# example: Flat damage increase after a bounce item will be ignored. The bounce calculation should be calculated on items after the bounce itself.
+# to_do:
+#   move it to the damage_updater.py
+#   complete the code
+def ejection_level_damage_updater(item_att, previous_item_att, item_list, skills):
+    if skills['circle_aoe_penalty']:
+        item_att['current_damage'] = item_att['current_damage']*((1-0.03)**item_att['cycle_aoe'])
+    else:
+        item_att['current_damage'] = item_att['current_damage']*((1-0.06)**item_att['cycle_aoe'])
+    # majd a végén olyat kellene, hogy az item hatékonyság mutatókat vissza számoljam ezek alapján.
+    # tehát, ha 1 aoe lecsökkenti 6%-al a damaget, akkor annak az aoe-nak a hatékonysága 0.96 legyen
+    # ha két aoe lecsökkenti 11.64%-al, akkor mind a két aoe-nak legyen ott vagy a 0.96, vagy 94,18
+    # final_current_damage/original_current_damage
+    # current_damage/item_list[-1]['current_damage']   /  item_att['cycle_aoe']
+        
+    if skills['square_aoe_penalty']:
+        item_att['current_damage'] = item_att['current_damage']*((1-0.03)**item_att['square_aoe'])
+    else:
+        item_att['current_damage'] = item_att['current_damage']*((1-0.06)**item_att['square_aoe'])
+        
+
+    if skills['random_bounce_damage'] and item_att['repeatedly_turn_upward'] > 0:
+        item_att[''] = item_att['previous_damage']
+    elif skills['repeatedly_turn_upward'] > 0:
+        item_att['current_damage'] = item_att['previous_damage']*2*skills['random_bounce_damage']
 
 def parse_build(build):
     custom = build[0:1] # custom ship Y/N
@@ -115,7 +404,7 @@ def next_coordination(x_coord, y_coord, item_with_orientation, previous_directio
 # v5 adding the function that calls the item functions. nem tudom, hogy az egész listát adjam-e át, vagy csak az item_att-ot
 # új ötlet, simán match item, case kombó elég. Ha id-vel dolgozom, akkor 10 000 hívásonként fél másodpercel gyorsabb
 # mintha meghívnám az item_name mappert, de kevésbé lesz átlátható.
-def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, current_y=None, previous_item_att=None, previous_direction=None, item_list=None):
+def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, current_y=None, previous_projectile_att=None, previous_direction=None, item_list=None):
 #     global item_list
     if current_x is None or current_y is None:
         current_x, current_y = get_starting_position(items_and_orientation_2d_array)
@@ -127,8 +416,8 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
     orientation = int(item[2])
     
     #basic dictionary
-    if previous_item_att is None:
-        item_att = {
+    if previous_projectile_att is None:
+        projectile_att = {
             "coord": (current_x, current_y),
             "item_id": item[0:2],
             "orientation": orientation,
@@ -142,26 +431,32 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
             "repeatedly_turn_upward" : 0
         } 
     else:
-        item_att = {
+        projectile_att = {
             "coord": (current_x, current_y),
             "item_id": item[0:2],
             "orientation": orientation,
-            "previous_damage": previous_item_att['current_damage'],
-#             "current_damage": previous_item_att['current_damage'] # later I might re-enable this for safety
-            "effective_damage": previous_item_att['effective_damage'],
-            "cycle_aoe" : previous_item_att["cycle_aoe"],
-            "square_aoe" : previous_item_att["square_aoe"],
-            "pierce" : previous_item_att["pierce"],
-            "death_pierce" : previous_item_att["death_pierce"],
-            "return_bounce" : previous_item_att["return_bounce"],
-            "random_bounce" : previous_item_att["random_bounce"],
-            "ricochet" : previous_item_att["ricochet"],
-            "repeatedly_turn_upward" : previous_item_att["repeatedly_turn_upward"]
+            "previous_damage": previous_projectile_att['current_damage'],
+            "current_damage": previous_projectile_att['current_damage'], # later I might re-enable this for safety
+            # "effective_damage": previous_item_att['effective_damage'],
+            "cycle_aoe" : previous_projectile_att["cycle_aoe"],
+            "square_aoe" : previous_projectile_att["square_aoe"],
+            "pierce" : previous_projectile_att["pierce"],
+            "death_pierce" : previous_projectile_att["death_pierce"],
+            "return_bounce" : previous_projectile_att["return_bounce"],
+            "random_bounce" : previous_projectile_att["random_bounce"],
+            "ricochet" : previous_projectile_att["ricochet"],
+            "repeatedly_turn_upward" : previous_projectile_att["repeatedly_turn_upward"]
         } 
         
     # projectile_damage_updater will give back the current damage and effective damage after modifications
-    item_att = projectile_damage_updater(item_id=item_id, item_att=item_att, previous_item_att=previous_item_att, skills=skills, base_damage=base_damage, count_add_1_damage=count_add_1_damage)
-    
+    projectile_att = projectile_damage_updater(item_id=item_id, projectile_att=projectile_att, previous_projectile_att=previous_projectile_att, skills=skills, base_damage=base_damage, count_add_1_damage=count_add_1_damage)
+
+    # if the effective_damage was not updated, then use the projectile difference
+    try:
+        projectile_att['effective_damage']
+    except KeyError:
+        damage_increase = projectile_att['current_damage'] - previous_projectile_att['current_damage']
+        projectile_att['effective_damage'] = previous_projectile_att['effective_damage'] + damage_increase
     
     if item_id == '64':
         next_x, next_y = find_portal_exit(items_and_orientation_2d_array)
@@ -182,15 +477,15 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
     
     # ejection
     elif item_id == '03': 
-        item_list.append(item_att)
+        item_list.append(projectile_att)
         print('Ejection found at:', current_x, current_y)
         print(f'the final item list is: {item_list}')
     
     # cross money, cross damage
     elif item_id in ('30','29'):
         print('Item is not implemented:', item_name_mapper(item_id))
-        item_list.append(item_att)
-        convert_array_to_list_v2(items_and_orientation_2d_array, next_x, next_y, item_att, current_direction, item_list)
+        item_list.append(projectile_att)
+        convert_array_to_list_v2(items_and_orientation_2d_array, next_x, next_y, projectile_att, current_direction, item_list)
     
     # hitting a wall
     elif item_id == '01': 
@@ -206,8 +501,8 @@ def convert_array_to_list_v2(items_and_orientation_2d_array, current_x=None, cur
     
     # continue the path  
     else:
-        item_list.append(item_att)
-        convert_array_to_list_v2(items_and_orientation_2d_array, next_x, next_y, item_att, current_direction, item_list)
+        item_list.append(projectile_att)
+        convert_array_to_list_v2(items_and_orientation_2d_array, next_x, next_y, projectile_att, current_direction, item_list)
     
     if item_list[-1]['item_id']=='03':
         print('item list is returned.')
